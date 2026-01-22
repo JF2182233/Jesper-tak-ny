@@ -288,7 +288,7 @@ with tab_est:
             material_prices = {
                 "TP 20 (129kr/m2)": 129.0,
                 "Stilpanna 118kr/m2": 118.0,
-                "Premium metal roofing": 320.0,
+                "Economy metal roofing": 95.0,
             }
             price_per_m2 = material_prices[material]
 
