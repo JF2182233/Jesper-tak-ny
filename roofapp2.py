@@ -371,13 +371,13 @@ with tab_est:
                 "U start (mm)": round(p.u0, 1),
                 "U end (mm)": round(p.u1, 1),
                 "Width (mm)": round(p.width, 1),
+                "Cut length (mm)": round(p.cut_len, 1),
                 "Left length (mm)": round(p.left_len, 1),
                 "Right length (mm)": round(p.right_len, 1),
-                "Max length (mm)": round(p.max_len, 1),
                 "Note": p.note
             } for p in panels])
             st.dataframe(df, use_container_width=True)
 
-            longest = max((p.max_len for p in panels), default=0)
+            longest = max((p.cut_len for p in panels), default=0)
             st.write(f"**Number of panels:** {len(panels)}")
             st.write(f"**Longest required panel length (approx):** {longest:.0f} mm")
