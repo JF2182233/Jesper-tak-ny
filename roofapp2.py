@@ -184,26 +184,40 @@ def plot_face_and_panels(poly, panels):
             add_poly(p, f"Face outline {i}", line_color="#0f172a", line_width=3)
         bounds_poly = unary_union(list(poly.geoms))
 
-    # Panel rectangles (draw full-length panels for visibility)
+    # Panel cut shapes
     minx, miny, maxx, maxy = bounds_poly.bounds
     for p in panels:
-        if p.cut_len <= 0:
-            continue
-        panel_rect = Polygon([
+        strip = Polygon([
             (p.u0, miny),
             (p.u1, miny),
-            (p.u1, miny + p.cut_len),
-            (p.u0, miny + p.cut_len),
+            (p.u1, maxy),
+            (p.u0, maxy),
         ])
-        add_poly(
-            panel_rect,
-            f"Panel {p.idx}",
-            line_color="#111827",
-            line_width=1,
-            fill="toself",
-            fillcolor="rgba(17, 24, 39, 0.04)",
-            showlegend=False,
-        )
+        cut_shape = poly.intersection(strip)
+        if cut_shape.is_empty:
+            continue
+        if cut_shape.geom_type == "Polygon":
+            add_poly(
+                cut_shape,
+                f"Panel {p.idx}",
+                line_color="#111827",
+                line_width=1,
+                fill="toself",
+                fillcolor="rgba(17, 24, 39, 0.04)",
+                showlegend=False,
+            )
+        elif cut_shape.geom_type in {"MultiPolygon", "GeometryCollection"}:
+            for geom in cut_shape.geoms:
+                if geom.geom_type == "Polygon":
+                    add_poly(
+                        geom,
+                        f"Panel {p.idx}",
+                        line_color="#111827",
+                        line_width=1,
+                        fill="toself",
+                        fillcolor="rgba(17, 24, 39, 0.04)",
+                        showlegend=False,
+                    )
 
     # Panel guide lines + numbers
     y0, y1 = miny, maxy
@@ -222,9 +236,11 @@ def plot_face_and_panels(poly, panels):
         ))
 
         mid = (p.u0 + p.u1) / 2
-        if p.cut_len > 0:
+        spans = vertical_spans(poly, mid)
+        if spans:
+            vmin, vmax = max(spans, key=lambda span: span[1] - span[0])
             fig.add_annotation(
-                x=mid, y=miny + (p.cut_len / 2),
+                x=mid, y=(vmin + vmax) / 2,
                 text=f"{p.cut_len:.0f}",
                 showarrow=False
             )
