@@ -110,6 +110,7 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
     Returns list[Panel] with left/right edge lengths and max length in strip.
     """
     minx, miny, maxx, maxy = poly.bounds
+    roof_len = maxy - miny
     total_w = maxx - minx
     n = math.ceil(total_w / coverage_w)
 
@@ -220,7 +221,7 @@ def plot_face_and_panels(poly, panels):
             vmin, vmax = max(spans, key=lambda span: span[1] - span[0])
             fig.add_annotation(
                 x=mid, y=(vmin + vmax) / 2,
-                text=f"{p.max_len:.0f}",
+                text=f"{p.cut_len:.0f}",
                 showarrow=False
             )
 
