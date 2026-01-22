@@ -63,7 +63,7 @@ def _collect_segments_from_intersection(geom):
 
 def vertical_spans(poly: Polygon, u: float):
     """
-    Return list of (vmin, vmax) segments for intersection with vertical line u=const.
+    Return (vmin, vmax) of intersection with vertical line u=const.
     For this roof face shape, it should normally be one continuous segment.
     """
     minx, miny, maxx, maxy = poly.bounds
@@ -85,7 +85,7 @@ class Panel:
     width: float
     left_len: float
     right_len: float
-    cut_len: float
+    max_len: float
     note: str = ""
 
 def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
@@ -126,16 +126,16 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
         left_spans = vertical_spans(poly, u0)
         right_spans = vertical_spans(poly, u1)
 
+        max_len = max(v1 - v0 for v0, v1 in spans)
         left_len = max((v1 - v0 for v0, v1 in left_spans), default=0)
         right_len = max((v1 - v0 for v0, v1 in right_spans), default=0)
-        cut_len = max(left_len, right_len)
 
         panels.append(Panel(
             idx=i+1,
             u0=u0, u1=u1, width=width,
             left_len=left_len,
             right_len=right_len,
-            cut_len=cut_len,
+            max_len=max_len,
             note=""
         ))
 
@@ -184,34 +184,9 @@ def plot_face_and_panels(poly, panels):
             vmin, vmax = max(spans, key=lambda span: span[1] - span[0])
             fig.add_annotation(
                 x=mid, y=(vmin + vmax) / 2,
-                text=f"{p.cut_len:.0f}",
+                text=f"{p.max_len:.0f}",
                 showarrow=False
             )
-
-        strip = Polygon([
-            (p.u0, y0 - 1),
-            (p.u1, y0 - 1),
-            (p.u1, y1 + 1),
-            (p.u0, y1 + 1),
-        ])
-        panel_shape = poly.intersection(strip)
-        if panel_shape.is_empty:
-            continue
-        if panel_shape.geom_type == "Polygon":
-            shapes = [panel_shape]
-        else:
-            shapes = list(panel_shape.geoms)
-        for shape in shapes:
-            x, y = shape.exterior.xy
-            fig.add_trace(go.Scatter(
-                x=list(x),
-                y=list(y),
-                mode="lines",
-                fill="toself",
-                fillcolor="rgba(0, 180, 255, 0.08)",
-                line=dict(width=1),
-                showlegend=False
-            ))
 
     fig.update_layout(
         xaxis_title="Across roof (mm)",
