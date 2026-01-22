@@ -110,6 +110,7 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
     Returns list[Panel] with left/right edge lengths and max length in strip.
     """
     minx, miny, maxx, maxy = poly.bounds
+    roof_len = maxy - miny
     total_w = maxx - minx
     n = math.ceil(total_w / coverage_w)
 
@@ -146,14 +147,13 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
         left_len = max((v1 - v0 for v0, v1 in left_spans), default=0)
         right_len = max((v1 - v0 for v0, v1 in right_spans), default=0)
 
-        cut_len = max_len
         panels.append(Panel(
             idx=i+1,
             u0=u0, u1=u1, width=width,
             left_len=left_len,
             right_len=right_len,
             max_len=max_len,
-            cut_len=cut_len,
+            cut_len=max_len,
             note=""
         ))
 
@@ -180,18 +180,24 @@ def plot_face_and_panels(poly, panels):
             add_poly(p, f"Face outline {i}")
         bounds_poly = unary_union(list(poly.geoms))
 
-    # Panel rectangles (perpendicular-only cuts)
+    # Panel cut shapes
     minx, miny, maxx, maxy = bounds_poly.bounds
     for p in panels:
-        if p.cut_len <= 0:
-            continue
-        rect = Polygon([
+        strip = Polygon([
             (p.u0, miny),
             (p.u1, miny),
-            (p.u1, miny + p.cut_len),
-            (p.u0, miny + p.cut_len),
+            (p.u1, maxy),
+            (p.u0, maxy),
         ])
-        add_poly(rect, f"Panel {p.idx}")
+        cut_shape = poly.intersection(strip)
+        if cut_shape.is_empty:
+            continue
+        if cut_shape.geom_type == "Polygon":
+            add_poly(cut_shape, f"Panel {p.idx}")
+        elif cut_shape.geom_type in {"MultiPolygon", "GeometryCollection"}:
+            for geom in cut_shape.geoms:
+                if geom.geom_type == "Polygon":
+                    add_poly(geom, f"Panel {p.idx}")
 
     # Panel guide lines + numbers
     y0, y1 = miny, maxy
