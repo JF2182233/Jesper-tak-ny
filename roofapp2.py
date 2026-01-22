@@ -43,27 +43,25 @@ def face_polygon_gable_notch(A_mm, H_mm, C_mm, G_mm, E_mm):
 # Robust helpers
 # ----------------------------
 
-def _all_y_from_intersection(geom):
-    ys = []
+def _collect_segments_from_intersection(geom):
+    segments = []
     if geom.is_empty:
-        return ys
+        return segments
 
     gt = geom.geom_type
-    if gt == "Point":
-        ys.append(geom.y)
-    elif gt == "MultiPoint":
-        ys.extend([p.y for p in geom.geoms])
-    elif gt == "LineString":
-        ys.extend([y for _, y in geom.coords])
+    if gt == "LineString":
+        ys = [y for _, y in geom.coords]
+        if ys:
+            segments.append((min(ys), max(ys)))
     elif gt == "MultiLineString":
         for ls in geom.geoms:
-            ys.extend([y for _, y in ls.coords])
+            segments.extend(_collect_segments_from_intersection(ls))
     elif gt == "GeometryCollection":
         for g in geom.geoms:
-            ys.extend(_all_y_from_intersection(g))
-    return ys
+            segments.extend(_collect_segments_from_intersection(g))
+    return segments
 
-def vertical_span(poly: Polygon, u: float):
+def vertical_spans(poly: Polygon, u: float):
     """
     Return (vmin, vmax) of intersection with vertical line u=const.
     For this roof face shape, it should normally be one continuous segment.
@@ -71,18 +69,13 @@ def vertical_span(poly: Polygon, u: float):
     minx, miny, maxx, maxy = poly.bounds
     line = LineString([(u, miny - 1e6), (u, maxy + 1e6)])
 
-    # Prefer boundary intersection (fast) then fall back to full intersection
-    inter = poly.boundary.intersection(line)
-    ys = _all_y_from_intersection(inter)
+    inter = poly.intersection(line)
+    segments = _collect_segments_from_intersection(inter)
 
-    if not ys:
-        inter2 = poly.intersection(line)
-        ys = _all_y_from_intersection(inter2)
+    if not segments:
+        return []
 
-    if not ys:
-        return None, None
-
-    return min(ys), max(ys)
+    return segments
 
 @dataclass
 class Panel:
@@ -123,20 +116,19 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
 
         spans = []
         for u in cand:
-            v0, v1 = vertical_span(poly, u)
-            if v0 is not None:
-                spans.append((v0, v1))
+            u_spans = vertical_spans(poly, u)
+            spans.extend(u_spans)
 
         if not spans:
             panels.append(Panel(i+1, u0, u1, width, 0, 0, 0, note="No intersection"))
             continue
 
-        lv0, lv1 = vertical_span(poly, u0)
-        rv0, rv1 = vertical_span(poly, u1)
+        left_spans = vertical_spans(poly, u0)
+        right_spans = vertical_spans(poly, u1)
 
         max_len = max(v1 - v0 for v0, v1 in spans)
-        left_len = (lv1 - lv0) if (lv0 is not None) else 0
-        right_len = (rv1 - rv0) if (rv0 is not None) else 0
+        left_len = max((v1 - v0 for v0, v1 in left_spans), default=0)
+        right_len = max((v1 - v0 for v0, v1 in right_spans), default=0)
 
         panels.append(Panel(
             idx=i+1,
@@ -187,11 +179,12 @@ def plot_face_and_panels(poly, panels):
         ))
 
         mid = (p.u0 + p.u1) / 2
-        vmin, vmax = vertical_span(poly, mid)
-        if vmin is not None and vmax is not None:
+        spans = vertical_spans(poly, mid)
+        if spans:
+            vmin, vmax = max(spans, key=lambda span: span[1] - span[0])
             fig.add_annotation(
                 x=mid, y=(vmin + vmax) / 2,
-                text=str(p.idx),
+                text=f"{p.max_len:.0f}",
                 showarrow=False
             )
 
@@ -240,14 +233,14 @@ with tab_est:
             roof_width = st.number_input(
                 "Roof width (along the eaves)",
                 min_value=0.1,
-                value=11.74,
+                value=11.20,
                 step=0.1,
                 help="Total width of this roof face along the bottom edge (eaves)."
             )
             roof_length = st.number_input(
                 "Roof length (eave → ridge) on the roof surface",
                 min_value=0.1,
-                value=4.84,
+                value=4.00,
                 step=0.1,
                 help="Measure along the roof surface from the eave up to the ridge."
             )
@@ -256,21 +249,21 @@ with tab_est:
             bump_start = st.number_input(
                 "Distance from left edge to bump-out start",
                 min_value=0.0,
-                value=1.65,
+                value=3.00,
                 step=0.05,
                 help="From the left edge of the roof face, measure to where the bump-out begins."
             )
             bump_width = st.number_input(
                 "Bump-out width (total)",
                 min_value=0.0,
-                value=4.786,
+                value=5.20,
                 step=0.05,
                 help="Total width of the bump-out section."
             )
             bump_depth = st.number_input(
                 "Bump-out depth (how far up the roof it goes)",
                 min_value=0.0,
-                value=1.695,
+                value=1.50,
                 step=0.05,
                 help="How far the bump-out reaches up into the roof face."
             )
@@ -293,9 +286,16 @@ with tab_est:
             price_per_m2 = material_prices[material]
 
             with st.expander("Advanced sheet settings (optional)"):
-                raw_w = st.number_input("Sheet width (mm)", 100.0, 2000.0, 510.0, 1.0)
-                side_lap = st.number_input("Side overlap (mm)", 0.0, 200.0, 20.0, 1.0)
-                waste_pct = st.number_input("Waste %", 0.0, 50.0, 8.0, 0.5)
+                raw_w = st.number_input("Sheet width (mm)", 100.0, 2000.0, 475.0, 1.0)
+                side_lap = st.number_input("Side overlap (mm)", 0.0, 200.0, 0.0, 1.0)
+                waste_pct = st.number_input("Waste %", 0.0, 50.0, 0.0, 0.5)
+                direction_label = st.selectbox(
+                    "Panel layout direction",
+                    ["Right to left", "Left to right"],
+                    index=0
+                )
+
+            direction = "right_to_left" if direction_label == "Right to left" else "left_to_right"
 
             submitted = st.form_submit_button("Calculate estimate")
 
@@ -345,7 +345,7 @@ with tab_est:
             st.stop()
 
         # Panelize
-        panels = panelize_face(poly, coverage_w=coverage_w, direction="left_to_right")
+        panels = panelize_face(poly, coverage_w=coverage_w, direction=direction)
 
         # Exact area from polygon
         area_m2 = poly.area / 1e6
