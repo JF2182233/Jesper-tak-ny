@@ -101,6 +101,7 @@ class Panel:
     left_len: float
     right_len: float
     max_len: float
+    cut_len: float
     note: str = ""
 
 def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
@@ -135,7 +136,7 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
             spans.extend(u_spans)
 
         if not spans:
-            panels.append(Panel(i+1, u0, u1, width, 0, 0, 0, note="No intersection"))
+            panels.append(Panel(i+1, u0, u1, width, 0, 0, 0, 0, note="No intersection"))
             continue
 
         left_spans = vertical_spans(poly, u0)
@@ -145,12 +146,14 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
         left_len = max((v1 - v0 for v0, v1 in left_spans), default=0)
         right_len = max((v1 - v0 for v0, v1 in right_spans), default=0)
 
+        cut_len = max_len
         panels.append(Panel(
             idx=i+1,
             u0=u0, u1=u1, width=width,
             left_len=left_len,
             right_len=right_len,
             max_len=max_len,
+            cut_len=cut_len,
             note=""
         ))
 
@@ -177,8 +180,21 @@ def plot_face_and_panels(poly, panels):
             add_poly(p, f"Face outline {i}")
         bounds_poly = unary_union(list(poly.geoms))
 
+    # Panel rectangles (perpendicular-only cuts)
+    minx, miny, maxx, maxy = bounds_poly.bounds
+    for p in panels:
+        if p.cut_len <= 0:
+            continue
+        rect = Polygon([
+            (p.u0, miny),
+            (p.u1, miny),
+            (p.u1, miny + p.cut_len),
+            (p.u0, miny + p.cut_len),
+        ])
+        add_poly(rect, f"Panel {p.idx}")
+
     # Panel guide lines + numbers
-    y0, y1 = bounds_poly.bounds[1], bounds_poly.bounds[3]
+    y0, y1 = miny, maxy
     for p in panels:
         fig.add_trace(go.Scatter(
             x=[p.u0, p.u0],
@@ -199,7 +215,7 @@ def plot_face_and_panels(poly, panels):
             vmin, vmax = max(spans, key=lambda span: span[1] - span[0])
             fig.add_annotation(
                 x=mid, y=(vmin + vmax) / 2,
-                text=f"{p.max_len:.0f}",
+                text=f"{p.cut_len:.0f}",
                 showarrow=False
             )
 
@@ -336,7 +352,7 @@ with tab_est:
 
         # Derived
         G_mm = W_mm / 2.0
-        coverage_w = max(1.0, raw_w - side_lap)
+        coverage_w = max(1.0, raw_w)
 
         # Sanity checks (customer-friendly)
         errors = []
