@@ -101,6 +101,7 @@ class Panel:
     left_len: float
     right_len: float
     max_len: float
+    cut_len: float
     note: str = ""
 
 def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
@@ -135,7 +136,7 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
             spans.extend(u_spans)
 
         if not spans:
-            panels.append(Panel(i+1, u0, u1, width, 0, 0, 0, note="No intersection"))
+            panels.append(Panel(i+1, u0, u1, width, 0, 0, 0, 0, note="No intersection"))
             continue
 
         left_spans = vertical_spans(poly, u0)
@@ -151,6 +152,7 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
             left_len=left_len,
             right_len=right_len,
             max_len=max_len,
+            cut_len=max_len,
             note=""
         ))
 
@@ -177,8 +179,27 @@ def plot_face_and_panels(poly, panels):
             add_poly(p, f"Face outline {i}")
         bounds_poly = unary_union(list(poly.geoms))
 
+    # Panel cut shapes
+    minx, miny, maxx, maxy = bounds_poly.bounds
+    for p in panels:
+        strip = Polygon([
+            (p.u0, miny),
+            (p.u1, miny),
+            (p.u1, maxy),
+            (p.u0, maxy),
+        ])
+        cut_shape = poly.intersection(strip)
+        if cut_shape.is_empty:
+            continue
+        if cut_shape.geom_type == "Polygon":
+            add_poly(cut_shape, f"Panel {p.idx}")
+        elif cut_shape.geom_type in {"MultiPolygon", "GeometryCollection"}:
+            for geom in cut_shape.geoms:
+                if geom.geom_type == "Polygon":
+                    add_poly(geom, f"Panel {p.idx}")
+
     # Panel guide lines + numbers
-    y0, y1 = bounds_poly.bounds[1], bounds_poly.bounds[3]
+    y0, y1 = miny, maxy
     for p in panels:
         fig.add_trace(go.Scatter(
             x=[p.u0, p.u0],
@@ -336,7 +357,7 @@ with tab_est:
 
         # Derived
         G_mm = W_mm / 2.0
-        coverage_w = max(1.0, raw_w - side_lap)
+        coverage_w = max(1.0, raw_w)
 
         # Sanity checks (customer-friendly)
         errors = []
