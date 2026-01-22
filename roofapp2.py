@@ -17,6 +17,21 @@ from shapely.ops import unary_union
 st.set_page_config(page_title="Roof Estimate", layout="wide")
 
 # ----------------------------
+# Global styling
+# ----------------------------
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 55%, #0b1324 100%);
+        color: #e2e8f0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ----------------------------
 # Face template (your same geometry)
 # ----------------------------
 
@@ -294,6 +309,8 @@ with tab_est:
                     ["Right to left", "Left to right"],
                     index=0
                 )
+
+            direction = "right_to_left" if direction_label == "Right to left" else "left_to_right"
 
             direction = "right_to_left" if direction_label == "Right to left" else "left_to_right"
 
