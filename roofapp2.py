@@ -162,22 +162,26 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
 def plot_face_and_panels(poly, panels):
     fig = go.Figure()
 
-    # Outline
-    def add_poly(p, name):
+    # Outline/panel helper
+    def add_poly(p, name, line_color="#0f172a", line_width=1, fill="none", fillcolor=None, showlegend=True):
         x, y = p.exterior.xy
         fig.add_trace(go.Scatter(
             x=list(x),
             y=list(y),
             mode="lines",
-            name=name
+            name=name,
+            line=dict(color=line_color, width=line_width),
+            fill=fill,
+            fillcolor=fillcolor,
+            showlegend=showlegend,
         ))
 
     if poly.geom_type == "Polygon":
-        add_poly(poly, "Face outline")
+        add_poly(poly, "Face outline", line_color="#0f172a", line_width=3)
         bounds_poly = poly
     else:
         for i, p in enumerate(poly.geoms, start=1):
-            add_poly(p, f"Face outline {i}")
+            add_poly(p, f"Face outline {i}", line_color="#0f172a", line_width=3)
         bounds_poly = unary_union(list(poly.geoms))
 
     # Panel cut shapes
@@ -193,11 +197,27 @@ def plot_face_and_panels(poly, panels):
         if cut_shape.is_empty:
             continue
         if cut_shape.geom_type == "Polygon":
-            add_poly(cut_shape, f"Panel {p.idx}")
+            add_poly(
+                cut_shape,
+                f"Panel {p.idx}",
+                line_color="#111827",
+                line_width=1,
+                fill="toself",
+                fillcolor="rgba(17, 24, 39, 0.04)",
+                showlegend=False,
+            )
         elif cut_shape.geom_type in {"MultiPolygon", "GeometryCollection"}:
             for geom in cut_shape.geoms:
                 if geom.geom_type == "Polygon":
-                    add_poly(geom, f"Panel {p.idx}")
+                    add_poly(
+                        geom,
+                        f"Panel {p.idx}",
+                        line_color="#111827",
+                        line_width=1,
+                        fill="toself",
+                        fillcolor="rgba(17, 24, 39, 0.04)",
+                        showlegend=False,
+                    )
 
     # Panel guide lines + numbers
     y0, y1 = miny, maxy
@@ -230,7 +250,12 @@ def plot_face_and_panels(poly, panels):
         yaxis_title="Up roof face (mm)",
         height=520,
         margin=dict(l=10, r=10, t=40, b=10),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        font=dict(color="#111827"),
     )
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(showgrid=False, zeroline=False)
     return fig
 
 # ----------------------------
