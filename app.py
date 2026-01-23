@@ -635,6 +635,8 @@ def render_roof_selector() -> str | None:
 def render_estimate_outputs(
     face_results: Sequence[RoofFaceResult],
     sheet_waste_pct: float,
+    price_per_m2: float,
+    coverage_width_mm: float,
     layout: str = "split",
 ) -> None:
     total_area = sum(face.area_m2 for face in face_results)
@@ -705,13 +707,31 @@ def render_estimate_outputs(
 
     def render_final_overview() -> None:
         st.subheader("FINAL OVERVIEW")
-        total_panels = sum(len(face.panels) for face in face_results)
-        total_length_mm = sum(p.max_len for face in face_results for p in face.panels)
-        total_length_m = total_length_mm / NUMERICS["M_TO_MM"]
-        c1, c2 = st.columns(2)
-        c1.metric("Total number of panels (all sides)", total_panels)
-        c2.metric("Total panel length required (all sides)", f"{total_length_m:.2f} m")
-        st.caption(f"Total length in millimeters: {total_length_mm:.0f} mm")
+        panel_lengths: List[int] = []
+        for face in face_results:
+            for panel in face.panels:
+                if panel.max_len <= 0:
+                    continue
+                panel_lengths.append(int(round(panel.max_len)))
+
+        if not panel_lengths:
+            st.info("No panels available to summarize.")
+            return
+
+        counts = pd.Series(panel_lengths).value_counts().sort_index()
+        rows = []
+        for length_mm, count in counts.items():
+            cost_per_panel = (
+                length_mm * coverage_width_mm * NUMERICS["MM2_TO_M2"] * price_per_m2
+            )
+            rows.append(
+                {
+                    "Count": int(count),
+                    "Panel length (mm)": int(length_mm),
+                    "Cost per panel": format_sek(cost_per_panel),
+                }
+            )
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     if layout == "split":
         left, right = st.columns([1.1, 1.2], gap="large")
@@ -761,7 +781,15 @@ def render_estimate_tab(roof_config: str) -> None:
 
         sheet_waste_pct = st.session_state.get("sheet_waste_pct", DEFAULTS["waste_pct"])
         if face_results:
-            render_estimate_outputs(face_results, sheet_waste_pct, layout="tabs")
+            price_per_m2 = st.session_state.get("price_per_m2", 0.0)
+            coverage_width_mm = st.session_state.get("coverage_width_mm", 0.0)
+            render_estimate_outputs(
+                face_results,
+                sheet_waste_pct,
+                price_per_m2,
+                coverage_width_mm,
+                layout="tabs",
+            )
         else:
             st.info("Fill in the measurements and press **Calculate estimate**.")
         return
@@ -990,6 +1018,8 @@ def render_estimate_tab(roof_config: str) -> None:
             st.session_state["face_results"] = face_results
             st.session_state["roof_config"] = roof_config
             st.session_state["sheet_waste_pct"] = sheet.waste_pct
+            st.session_state["price_per_m2"] = price_per_m2
+            st.session_state["coverage_width_mm"] = sheet.coverage_width_mm
             st.session_state["show_inputs"] = False
             st.rerun()
 
@@ -999,7 +1029,15 @@ def render_estimate_tab(roof_config: str) -> None:
             st.stop()
 
         sheet_waste_pct = st.session_state.get("sheet_waste_pct", DEFAULTS["waste_pct"])
-        render_estimate_outputs(face_results, sheet_waste_pct, layout="split")
+        price_per_m2 = st.session_state.get("price_per_m2", 0.0)
+        coverage_width_mm = st.session_state.get("coverage_width_mm", 0.0)
+        render_estimate_outputs(
+            face_results,
+            sheet_waste_pct,
+            price_per_m2,
+            coverage_width_mm,
+            layout="split",
+        )
 
 
 # ----------------------------
