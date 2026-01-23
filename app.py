@@ -39,8 +39,13 @@ APP = {
         "estimate_tab": "Provide estimate",
         "help_tab": "How to measure",
         "help_md": """
-**You only need 5 measurements (in meters):**
+**Measurements depend on Taktyp:**
 
+**Taktyp 1 (2 identiska rektangulära sidor):**
+1. **Roof width** – full width of the roof face along the eaves.
+2. **Roof length** – length from eave up to ridge **measured on the roof surface**.
+
+**Taktyp 3 (2 icke identiska sidor + utbyggnad):**
 1. **Roof width** – full width of the roof face along the eaves.
 2. **Roof length** – length from eave up to ridge **measured on the roof surface**.
 3. **Bump-out start** – distance from the left edge to where the bump-out starts.
@@ -415,22 +420,14 @@ def compute_roof(
     price_per_m2: float,
     side_b_inputs: RoofInputsMM | None = None,
     side_b_identical: bool = True,
-    mini_inputs: RoofInputsMM | None = None,
-    mini_side_b_inputs: RoofInputsMM | None = None,
-    mini_symmetric: bool = True,
 ) -> List[RoofFaceResult]:
     results: List[RoofFaceResult] = []
 
     results.append(compute_face("Main roof – Side A", main_inputs, sheet, price_per_m2))
 
-    if config in ("Full gable roof (2 faces)", "Full gable + mini gable (4 faces)"):
+    if config in ("Taktyp 1", "Taktyp 3"):
         side_inputs = main_inputs if side_b_identical or side_b_inputs is None else side_b_inputs
         results.append(compute_face("Main roof – Side B", side_inputs, sheet, price_per_m2))
-
-    if config == "Full gable + mini gable (4 faces)" and mini_inputs is not None:
-        results.append(compute_face("Mini gable – Side A", mini_inputs, sheet, price_per_m2))
-        mini_side_inputs = mini_inputs if mini_symmetric or mini_side_b_inputs is None else mini_side_b_inputs
-        results.append(compute_face("Mini gable – Side B", mini_side_inputs, sheet, price_per_m2))
 
     return results
 
@@ -452,11 +449,10 @@ def render_estimate_tab() -> None:
         with st.form("estimate_form", clear_on_submit=False):
             units = st.radio("Units", ["Meters (recommended)", "Millimeters"], horizontal=True)
             roof_config = st.selectbox(
-                "Roof configuration",
+                "Taktyp",
                 [
-                    "Single face (current)",
-                    "Full gable roof (2 faces)",
-                    "Full gable + mini gable (4 faces)",
+                    "Taktyp 1",
+                    "Taktyp 3",
                 ],
             )
 
@@ -478,189 +474,69 @@ def render_estimate_tab() -> None:
                 key="main_roof_length",
             )
 
-            st.markdown("**Bump-out (utbyggnad) position**")
-            bump_start = st.number_input(
-                "Distance from left edge to bump-out start",
-                min_value=LIMITS["bump_min"],
-                value=DEFAULTS["bump_start"],
-                step=0.05,
-                help="From the left edge of the roof face, measure to where the bump-out begins.",
-                key="main_bump_start",
-            )
-            bump_width = st.number_input(
-                "Bump-out width (total)",
-                min_value=LIMITS["bump_min"],
-                value=DEFAULTS["bump_width"],
-                step=0.05,
-                help="Total width of the bump-out section.",
-                key="main_bump_width",
-            )
-            bump_depth = st.number_input(
-                "Bump-out depth (how far up the roof it goes)",
-                min_value=LIMITS["bump_min"],
-                value=DEFAULTS["bump_depth"],
-                step=0.05,
-                help="How far the bump-out reaches up into the roof face.",
-                key="main_bump_depth",
-            )
+            if roof_config == "Taktyp 3":
+                st.markdown("**Bump-out (utbyggnad) position**")
+                bump_start = st.number_input(
+                    "Distance from left edge to bump-out start",
+                    min_value=LIMITS["bump_min"],
+                    value=DEFAULTS["bump_start"],
+                    step=0.05,
+                    help="From the left edge of the roof face, measure to where the bump-out begins.",
+                    key="main_bump_start",
+                )
+                bump_width = st.number_input(
+                    "Bump-out width (total)",
+                    min_value=LIMITS["bump_min"],
+                    value=DEFAULTS["bump_width"],
+                    step=0.05,
+                    help="Total width of the bump-out section.",
+                    key="main_bump_width",
+                )
+                bump_depth = st.number_input(
+                    "Bump-out depth (how far up the roof it goes)",
+                    min_value=LIMITS["bump_min"],
+                    value=DEFAULTS["bump_depth"],
+                    step=0.05,
+                    help="How far the bump-out reaches up into the roof face.",
+                    key="main_bump_depth",
+                )
+            else:
+                bump_start = 0.0
+                bump_width = 0.0
+                bump_depth = 0.0
+                st.caption("Taktyp 1 uses rectangular faces without a bump-out.")
 
             side_b_identical = True
             side_b_inputs: RoofInputs | None = None
-            if roof_config in ("Full gable roof (2 faces)", "Full gable + mini gable (4 faces)"):
-                st.divider()
-                st.subheader("Side B")
-                side_b_identical = st.checkbox(
-                    "Side B is identical to Side A",
-                    value=True,
+            st.divider()
+            st.subheader("Side B")
+            if roof_config == "Taktyp 1":
+                st.caption("Side B is identical to Side A for Taktyp 1.")
+            else:
+                side_b_identical = False
+                st.markdown("**Main roof – Side B (rectangle)**")
+                roof_width_b = st.number_input(
+                    "Roof width (along the eaves)",
+                    min_value=LIMITS["roof_width_min"],
+                    value=roof_width,
+                    step=0.1,
+                    key="side_b_roof_width",
                 )
-                if not side_b_identical:
-                    st.markdown("**Main roof – Side B**")
-                    roof_width_b = st.number_input(
-                        "Roof width (along the eaves)",
-                        min_value=LIMITS["roof_width_min"],
-                        value=roof_width,
-                        step=0.1,
-                        key="side_b_roof_width",
-                    )
-                    roof_length_b = st.number_input(
-                        "Roof length (eave → ridge) on the roof surface",
-                        min_value=LIMITS["roof_length_min"],
-                        value=roof_length,
-                        step=0.1,
-                        key="side_b_roof_length",
-                    )
-                    st.markdown("**Bump-out (utbyggnad) position**")
-                    bump_start_b = st.number_input(
-                        "Distance from left edge to bump-out start",
-                        min_value=LIMITS["bump_min"],
-                        value=bump_start,
-                        step=0.05,
-                        key="side_b_bump_start",
-                    )
-                    bump_width_b = st.number_input(
-                        "Bump-out width (total)",
-                        min_value=LIMITS["bump_min"],
-                        value=bump_width,
-                        step=0.05,
-                        key="side_b_bump_width",
-                    )
-                    bump_depth_b = st.number_input(
-                        "Bump-out depth (how far up the roof it goes)",
-                        min_value=LIMITS["bump_min"],
-                        value=bump_depth,
-                        step=0.05,
-                        key="side_b_bump_depth",
-                    )
-                    side_b_inputs = RoofInputs(
-                        roof_width_b,
-                        roof_length_b,
-                        bump_start_b,
-                        bump_width_b,
-                        bump_depth_b,
-                        units,
-                    )
-
-            mini_inputs: RoofInputs | None = None
-            mini_side_b_inputs: RoofInputs | None = None
-            mini_symmetric = True
-            if roof_config == "Full gable + mini gable (4 faces)":
-                with st.expander("Mini gable (optional section)", expanded=True):
-                    st.markdown("**Mini gable measurements**")
-                    mini_roof_width = st.number_input(
-                        "Mini roof width (along the eaves)",
-                        min_value=LIMITS["roof_width_min"],
-                        value=DEFAULTS["mini_roof_width"],
-                        step=0.1,
-                        key="mini_roof_width",
-                    )
-                    mini_roof_length = st.number_input(
-                        "Mini roof length (eave → ridge) on the roof surface",
-                        min_value=LIMITS["roof_length_min"],
-                        value=DEFAULTS["mini_roof_length"],
-                        step=0.1,
-                        key="mini_roof_length",
-                    )
-                    st.markdown("**Bump-out (utbyggnad) position**")
-                    mini_bump_start = st.number_input(
-                        "Distance from left edge to bump-out start",
-                        min_value=LIMITS["bump_min"],
-                        value=DEFAULTS["mini_bump_start"],
-                        step=0.05,
-                        key="mini_bump_start",
-                    )
-                    mini_bump_width = st.number_input(
-                        "Bump-out width (total)",
-                        min_value=LIMITS["bump_min"],
-                        value=DEFAULTS["mini_bump_width"],
-                        step=0.05,
-                        key="mini_bump_width",
-                    )
-                    mini_bump_depth = st.number_input(
-                        "Bump-out depth (how far up the roof it goes)",
-                        min_value=LIMITS["bump_min"],
-                        value=DEFAULTS["mini_bump_depth"],
-                        step=0.05,
-                        key="mini_bump_depth",
-                    )
-                    mini_symmetric = st.checkbox(
-                        "Mini gable is symmetric (2 identical faces)",
-                        value=True,
-                        key="mini_symmetric",
-                    )
-                    mini_inputs = RoofInputs(
-                        mini_roof_width,
-                        mini_roof_length,
-                        mini_bump_start,
-                        mini_bump_width,
-                        mini_bump_depth,
-                        units,
-                    )
-                    if not mini_symmetric:
-                        st.markdown("**Mini gable – Side B**")
-                        mini_roof_width_b = st.number_input(
-                            "Mini roof width (along the eaves)",
-                            min_value=LIMITS["roof_width_min"],
-                            value=mini_roof_width,
-                            step=0.1,
-                            key="mini_roof_width_b",
-                        )
-                        mini_roof_length_b = st.number_input(
-                            "Mini roof length (eave → ridge) on the roof surface",
-                            min_value=LIMITS["roof_length_min"],
-                            value=mini_roof_length,
-                            step=0.1,
-                            key="mini_roof_length_b",
-                        )
-                        st.markdown("**Bump-out (utbyggnad) position**")
-                        mini_bump_start_b = st.number_input(
-                            "Distance from left edge to bump-out start",
-                            min_value=LIMITS["bump_min"],
-                            value=mini_bump_start,
-                            step=0.05,
-                            key="mini_bump_start_b",
-                        )
-                        mini_bump_width_b = st.number_input(
-                            "Bump-out width (total)",
-                            min_value=LIMITS["bump_min"],
-                            value=mini_bump_width,
-                            step=0.05,
-                            key="mini_bump_width_b",
-                        )
-                        mini_bump_depth_b = st.number_input(
-                            "Bump-out depth (how far up the roof it goes)",
-                            min_value=LIMITS["bump_min"],
-                            value=mini_bump_depth,
-                            step=0.05,
-                            key="mini_bump_depth_b",
-                        )
-                        mini_side_b_inputs = RoofInputs(
-                            mini_roof_width_b,
-                            mini_roof_length_b,
-                            mini_bump_start_b,
-                            mini_bump_width_b,
-                            mini_bump_depth_b,
-                            units,
-                        )
+                roof_length_b = st.number_input(
+                    "Roof length (eave → ridge) on the roof surface",
+                    min_value=LIMITS["roof_length_min"],
+                    value=roof_length,
+                    step=0.1,
+                    key="side_b_roof_length",
+                )
+                side_b_inputs = RoofInputs(
+                    roof_width_b,
+                    roof_length_b,
+                    0.0,
+                    0.0,
+                    0.0,
+                    units,
+                )
 
             st.divider()
             st.subheader("2) Material choice")
@@ -699,17 +575,6 @@ def render_estimate_tab() -> None:
                 mm_side_b = side_b_inputs.to_mm()
                 inputs_by_name.append(("Main roof – Side B", mm_side_b))
 
-            mm_mini = None
-            mm_mini_b = None
-            if mini_inputs is not None:
-                mm_mini = mini_inputs.to_mm()
-                inputs_by_name.append(("Mini gable – Side A", mm_mini))
-                if mini_side_b_inputs is not None:
-                    mm_mini_b = mini_side_b_inputs.to_mm()
-                    inputs_by_name.append(("Mini gable – Side B", mm_mini_b))
-                else:
-                    inputs_by_name.append(("Mini gable – Side B", mm_mini))
-
             for name, inputs in inputs_by_name:
                 errors = validate_inputs(inputs)
                 if errors:
@@ -727,9 +592,6 @@ def render_estimate_tab() -> None:
                     price_per_m2,
                     side_b_inputs=mm_side_b,
                     side_b_identical=side_b_identical,
-                    mini_inputs=mm_mini,
-                    mini_side_b_inputs=mm_mini_b,
-                    mini_symmetric=mini_symmetric,
                 )
             except ValueError as exc:
                 st.error(str(exc))
@@ -762,12 +624,6 @@ def render_estimate_tab() -> None:
         c3.metric("Estimated material cost (total)", format_sek(total_cost))
 
         st.caption(APP["copy"]["rough_note"])
-
-        if roof_config != "Single face (current)":
-            st.info(
-                "Intersections/valleys between roof sections are not subtracted yet; "
-                "totals are additive per face."
-            )
 
         breakdown = []
         for face in face_results:
