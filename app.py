@@ -551,13 +551,135 @@ def render_roof_selector() -> str | None:
     return None
 
 
+def render_estimate_outputs(
+    face_results: Sequence[RoofFaceResult],
+    sheet_waste_pct: float,
+    layout: str = "split",
+) -> None:
+    total_area = sum(face.area_m2 for face in face_results)
+    total_area_waste = sum(face.area_m2_waste for face in face_results)
+    total_cost = sum(face.cost for face in face_results)
+
+    breakdown = []
+    for face in face_results:
+        longest = max((p.max_len for p in face.panels), default=0.0)
+        breakdown.append(
+            {
+                "Face": face.name,
+                "Area (m²)": round(face.area_m2, 2),
+                "# Panels": len(face.panels),
+                "Longest panel (mm)": round(longest, 0),
+                "Cost": format_sek(face.cost),
+            }
+        )
+
+    def render_summary() -> None:
+        st.subheader("Estimate summary")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Estimated roof area (total)", f"{total_area:.2f} m²")
+        c2.metric(
+            "Estimated area incl. waste (total)",
+            f"{total_area_waste:.2f} m²",
+            delta=f"+{sheet_waste_pct:.1f}%",
+        )
+        c3.metric("Estimated material cost (total)", format_sek(total_cost))
+
+        st.caption(APP["copy"]["rough_note"])
+
+    def render_breakdown() -> None:
+        st.markdown("**Breakdown by face**")
+        st.dataframe(pd.DataFrame(breakdown), use_container_width=True)
+
+    def render_preview() -> None:
+        st.subheader("Preview (for confirmation)")
+        for idx, face in enumerate(face_results):
+            st.markdown(f"**{face.name}**")
+            fig = plot_face_and_panels(face.poly, face.panels)
+            st.plotly_chart(fig, use_container_width=True, key=f"face_preview_{idx}")
+
+    def render_installer_details() -> None:
+        st.subheader("Installer details (cut list / panel data)")
+        for face in face_results:
+            st.markdown(f"**{face.name}**")
+            df = pd.DataFrame(
+                [
+                    {
+                        "Panel #": p.idx,
+                        "U start (mm)": round(p.u0, 1),
+                        "U end (mm)": round(p.u1, 1),
+                        "Width (mm)": round(p.width, 1),
+                        "Cut length (mm)": round(p.max_len, 1),
+                        "Left length (mm)": round(p.left_len, 1),
+                        "Right length (mm)": round(p.right_len, 1),
+                        "Note": p.note,
+                    }
+                    for p in face.panels
+                ]
+            )
+            st.dataframe(df, use_container_width=True)
+
+            longest = max((p.max_len for p in face.panels), default=0.0)
+            st.write(f"**Number of panels:** {len(face.panels)}")
+            st.write(f"**Longest required panel length (approx):** {longest:.0f} mm")
+
+    if layout == "split":
+        left, right = st.columns([1.1, 1.2], gap="large")
+        with left:
+            render_summary()
+            render_breakdown()
+        with right:
+            render_preview()
+            render_installer_details()
+        return
+
+    summary_tab, breakdown_tab, preview_tab, details_tab = st.tabs(
+        ["Summary", "Breakdown", "Preview", "Installer details"]
+    )
+    with summary_tab:
+        render_summary()
+    with breakdown_tab:
+        render_breakdown()
+    with preview_tab:
+        render_preview()
+    with details_tab:
+        render_installer_details()
+
+
 def render_estimate_tab(roof_config: str) -> None:
+    if "show_inputs" not in st.session_state:
+        st.session_state["show_inputs"] = True
+
+    face_results = st.session_state.get("face_results")
+    if not face_results:
+        st.session_state["show_inputs"] = True
+
+    if not st.session_state["show_inputs"]:
+        controls = st.columns([1, 1, 4])
+        with controls[0]:
+            if st.button("Edit measurements"):
+                st.session_state["show_inputs"] = True
+                st.rerun()
+        with controls[1]:
+            if st.button("Byt taktyp"):
+                st.session_state.pop("roof_config", None)
+                st.session_state.pop("face_results", None)
+                st.session_state["show_inputs"] = True
+                st.rerun()
+
+        sheet_waste_pct = st.session_state.get("sheet_waste_pct", DEFAULTS["waste_pct"])
+        if face_results:
+            render_estimate_outputs(face_results, sheet_waste_pct, layout="tabs")
+        else:
+            st.info("Fill in the measurements and press **Calculate estimate**.")
+        return
+
     left, right = st.columns([1.1, 1.2], gap="large")
 
     with left:
         if st.button("Byt taktyp"):
             st.session_state.pop("roof_config", None)
             st.session_state.pop("face_results", None)
+            st.session_state["show_inputs"] = True
             st.rerun()
 
         st.subheader("1) Roof measurements")
@@ -775,76 +897,16 @@ def render_estimate_tab(roof_config: str) -> None:
             st.session_state["face_results"] = face_results
             st.session_state["roof_config"] = roof_config
             st.session_state["sheet_waste_pct"] = sheet.waste_pct
+            st.session_state["show_inputs"] = False
+            st.rerun()
 
         face_results = st.session_state.get("face_results")
         if not face_results:
             st.info("Fill in the measurements and press **Calculate estimate**.")
             st.stop()
 
-        roof_config = st.session_state.get("roof_config", roof_config)
-        sheet_waste_pct = st.session_state.get("sheet_waste_pct", waste_pct)
-
-        total_area = sum(face.area_m2 for face in face_results)
-        total_area_waste = sum(face.area_m2_waste for face in face_results)
-        total_cost = sum(face.cost for face in face_results)
-
-        st.subheader("Estimate summary")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Estimated roof area (total)", f"{total_area:.2f} m²")
-        c2.metric(
-            "Estimated area incl. waste (total)",
-            f"{total_area_waste:.2f} m²",
-            delta=f"+{sheet_waste_pct:.1f}%",
-        )
-        c3.metric("Estimated material cost (total)", format_sek(total_cost))
-
-        st.caption(APP["copy"]["rough_note"])
-
-        breakdown = []
-        for face in face_results:
-            longest = max((p.max_len for p in face.panels), default=0.0)
-            breakdown.append(
-                {
-                    "Face": face.name,
-                    "Area (m²)": round(face.area_m2, 2),
-                    "# Panels": len(face.panels),
-                    "Longest panel (mm)": round(longest, 0),
-                    "Cost": format_sek(face.cost),
-                }
-            )
-        st.markdown("**Breakdown by face**")
-        st.dataframe(pd.DataFrame(breakdown), use_container_width=True)
-
-    with right:
-        st.subheader("Preview (for confirmation)")
-        for idx, face in enumerate(face_results):
-            st.markdown(f"**{face.name}**")
-            fig = plot_face_and_panels(face.poly, face.panels)
-            st.plotly_chart(fig, use_container_width=True, key=f"face_preview_{idx}")
-
-        st.subheader("Installer details (cut list / panel data)")
-        for face in face_results:
-            st.markdown(f"**{face.name}**")
-            df = pd.DataFrame(
-                [
-                    {
-                        "Panel #": p.idx,
-                        "U start (mm)": round(p.u0, 1),
-                        "U end (mm)": round(p.u1, 1),
-                        "Width (mm)": round(p.width, 1),
-                        "Cut length (mm)": round(p.max_len, 1),
-                        "Left length (mm)": round(p.left_len, 1),
-                        "Right length (mm)": round(p.right_len, 1),
-                        "Note": p.note,
-                    }
-                    for p in face.panels
-                ]
-            )
-            st.dataframe(df, use_container_width=True)
-
-            longest = max((p.max_len for p in face.panels), default=0.0)
-            st.write(f"**Number of panels:** {len(face.panels)}")
-            st.write(f"**Longest required panel length (approx):** {longest:.0f} mm")
+        sheet_waste_pct = st.session_state.get("sheet_waste_pct", DEFAULTS["waste_pct"])
+        render_estimate_outputs(face_results, sheet_waste_pct, layout="split")
 
 
 # ----------------------------
