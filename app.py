@@ -445,16 +445,16 @@ def render_estimate_tab() -> None:
 
     with left:
         st.subheader("1) Roof measurements")
+        roof_config = st.selectbox(
+            "Taktyp",
+            [
+                "Taktyp 1",
+                "Taktyp 3",
+            ],
+        )
 
         with st.form("estimate_form", clear_on_submit=False):
             units = st.radio("Units", ["Meters (recommended)", "Millimeters"], horizontal=True)
-            roof_config = st.selectbox(
-                "Taktyp",
-                [
-                    "Taktyp 1",
-                    "Taktyp 3",
-                ],
-            )
 
             st.markdown("**Main roof – Side A**")
             roof_width = st.number_input(
