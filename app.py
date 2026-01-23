@@ -688,55 +688,64 @@ def render_estimate_tab() -> None:
             direction = "right_to_left" if direction_label == "Right to left" else "left_to_right"
             submitted = st.form_submit_button("Calculate estimate")
 
-        if not submitted:
+        if submitted:
+            # Convert + validate
+            raw_main = RoofInputs(roof_width, roof_length, bump_start, bump_width, bump_depth, units)
+            mm_main = raw_main.to_mm()
+            inputs_by_name: List[Tuple[str, RoofInputsMM]] = [("Main roof – Side A", mm_main)]
+
+            mm_side_b = None
+            if side_b_inputs is not None:
+                mm_side_b = side_b_inputs.to_mm()
+                inputs_by_name.append(("Main roof – Side B", mm_side_b))
+
+            mm_mini = None
+            mm_mini_b = None
+            if mini_inputs is not None:
+                mm_mini = mini_inputs.to_mm()
+                inputs_by_name.append(("Mini gable – Side A", mm_mini))
+                if mini_side_b_inputs is not None:
+                    mm_mini_b = mini_side_b_inputs.to_mm()
+                    inputs_by_name.append(("Mini gable – Side B", mm_mini_b))
+                else:
+                    inputs_by_name.append(("Mini gable – Side B", mm_mini))
+
+            for name, inputs in inputs_by_name:
+                errors = validate_inputs(inputs)
+                if errors:
+                    for e in errors:
+                        st.error(f"{name}: {e}")
+                    st.stop()
+
+            # Panelize + compute estimate
+            sheet = SheetSettings(raw_w, side_lap, waste_pct, direction)
+            try:
+                face_results = compute_roof(
+                    roof_config,
+                    mm_main,
+                    sheet,
+                    price_per_m2,
+                    side_b_inputs=mm_side_b,
+                    side_b_identical=side_b_identical,
+                    mini_inputs=mm_mini,
+                    mini_side_b_inputs=mm_mini_b,
+                    mini_symmetric=mini_symmetric,
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+                st.stop()
+
+            st.session_state["face_results"] = face_results
+            st.session_state["roof_config"] = roof_config
+            st.session_state["sheet_waste_pct"] = sheet.waste_pct
+
+        face_results = st.session_state.get("face_results")
+        if not face_results:
             st.info("Fill in the measurements and press **Calculate estimate**.")
             st.stop()
 
-        # Convert + validate
-        raw_main = RoofInputs(roof_width, roof_length, bump_start, bump_width, bump_depth, units)
-        mm_main = raw_main.to_mm()
-        inputs_by_name: List[Tuple[str, RoofInputsMM]] = [("Main roof – Side A", mm_main)]
-
-        mm_side_b = None
-        if side_b_inputs is not None:
-            mm_side_b = side_b_inputs.to_mm()
-            inputs_by_name.append(("Main roof – Side B", mm_side_b))
-
-        mm_mini = None
-        mm_mini_b = None
-        if mini_inputs is not None:
-            mm_mini = mini_inputs.to_mm()
-            inputs_by_name.append(("Mini gable – Side A", mm_mini))
-            if mini_side_b_inputs is not None:
-                mm_mini_b = mini_side_b_inputs.to_mm()
-                inputs_by_name.append(("Mini gable – Side B", mm_mini_b))
-            else:
-                inputs_by_name.append(("Mini gable – Side B", mm_mini))
-
-        for name, inputs in inputs_by_name:
-            errors = validate_inputs(inputs)
-            if errors:
-                for e in errors:
-                    st.error(f"{name}: {e}")
-                st.stop()
-
-        # Panelize + compute estimate
-        sheet = SheetSettings(raw_w, side_lap, waste_pct, direction)
-        try:
-            face_results = compute_roof(
-                roof_config,
-                mm_main,
-                sheet,
-                price_per_m2,
-                side_b_inputs=mm_side_b,
-                side_b_identical=side_b_identical,
-                mini_inputs=mm_mini,
-                mini_side_b_inputs=mm_mini_b,
-                mini_symmetric=mini_symmetric,
-            )
-        except ValueError as exc:
-            st.error(str(exc))
-            st.stop()
+        roof_config = st.session_state.get("roof_config", roof_config)
+        sheet_waste_pct = st.session_state.get("sheet_waste_pct", waste_pct)
 
         total_area = sum(face.area_m2 for face in face_results)
         total_area_waste = sum(face.area_m2_waste for face in face_results)
@@ -748,7 +757,7 @@ def render_estimate_tab() -> None:
         c2.metric(
             "Estimated area incl. waste (total)",
             f"{total_area_waste:.2f} m²",
-            delta=f"+{sheet.waste_pct:.1f}%",
+            delta=f"+{sheet_waste_pct:.1f}%",
         )
         c3.metric("Estimated material cost (total)", format_sek(total_cost))
 
