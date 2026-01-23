@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 from dataclasses import dataclass
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, LineString, box
 from shapely.ops import unary_union
 
 # ----------------------------
@@ -92,6 +92,16 @@ def vertical_spans(poly: Polygon, u: float):
 
     return segments
 
+def strip_cut_length(poly: Polygon, u0: float, u1: float) -> float:
+    """Return vertical span of roof inside [u0, u1] strip for supplier cut length."""
+    big = 1e9
+    strip = box(u0, -big, u1, big)
+    clipped = poly.intersection(strip)
+    if clipped.is_empty:
+        return 0.0
+    miny, maxy = clipped.bounds[1], clipped.bounds[3]
+    return maxy - miny
+
 @dataclass
 class Panel:
     idx: int
@@ -138,10 +148,12 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
             panels.append(Panel(i+1, u0, u1, width, 0, 0, 0, note="No intersection"))
             continue
 
-        left_spans = vertical_spans(poly, u0)
-        right_spans = vertical_spans(poly, u1)
+        eps = 1e-6
+        left_spans = vertical_spans(poly, u0 + eps)
+        right_spans = vertical_spans(poly, u1 - eps)
 
-        max_len = max(v1 - v0 for v0, v1 in spans)
+        # Clip to strip to avoid vertex/point intersections that under-report span.
+        max_len = strip_cut_length(poly, u0, u1)
         left_len = max((v1 - v0 for v0, v1 in left_spans), default=0)
         right_len = max((v1 - v0 for v0, v1 in right_spans), default=0)
 
@@ -309,8 +321,6 @@ with tab_est:
                     ["Right to left", "Left to right"],
                     index=0
                 )
-
-            direction = "right_to_left" if direction_label == "Right to left" else "left_to_right"
 
             direction = "right_to_left" if direction_label == "Right to left" else "left_to_right"
 
