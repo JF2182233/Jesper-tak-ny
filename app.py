@@ -498,10 +498,11 @@ def render_roof_selector() -> str | None:
         .taktyp-link img {{
             width: 100%;
             height: 360px;
-            object-fit: cover;
+            object-fit: contain;
             display: block;
             border-radius: 12px;
             border: 1px solid rgba(148, 163, 184, 0.35);
+            background-color: #ffffff;
             transition: transform 0.2s ease, border-color 0.2s ease;
         }}
         .taktyp-link:hover img {{
