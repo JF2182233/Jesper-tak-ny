@@ -23,7 +23,7 @@ from shapely.ops import unary_union
 # ============================
 # CONFIG (all knobs live here)
 # ============================
-TAKTYP_1_IMAGE_URL = "https://example.com/taktyp-1.jpg"
+TAKTYP_1_IMAGE_URL = "https://www.xn--pltgrossisten-qfb.se/wp-content/uploads/2025/09/Taktyp-1-ny-berakningssystem.jpg"
 TAKTYP_3_IMAGE_URL = "https://example.com/taktyp-3.jpg"
 
 APP = {
