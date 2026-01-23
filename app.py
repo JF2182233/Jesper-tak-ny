@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import math
 import mimetypes
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence, Tuple
@@ -463,52 +464,78 @@ def render_roof_selector() -> str | None:
     if selected:
         return selected
 
+    query_params = st.experimental_get_query_params()
+    requested = query_params.get("taktyp", [None])[0]
+    if requested in APP["taktyp_images"]:
+        st.session_state["roof_config"] = requested
+        st.experimental_set_query_params()
+        st.rerun()
+
     taktyp_1_url = image_data_url(APP["taktyp_images"]["Taktyp 1"])
     taktyp_3_url = image_data_url(APP["taktyp_images"]["Taktyp 3"])
+    taktyp_1_param = urllib.parse.quote_plus("Taktyp 1")
+    taktyp_3_param = urllib.parse.quote_plus("Taktyp 3")
     st.markdown(
         f"""
         <style>
-        div[data-testid="stButton"] button[aria-label="Taktyp 1"],
-        div[data-testid="stButton"] button[aria-label="Taktyp 3"] {{
-            width: 100%;
-            min-height: 360px;
-            padding: 0;
-            border-radius: 16px;
+        .taktyp-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 28px;
+        }}
+        .taktyp-card {{
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            text-decoration: none;
+            border-radius: 18px;
+            overflow: hidden;
             border: 2px solid rgba(15, 118, 110, 0.35);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            color: transparent;
-            font-size: 0;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            background: #0f172a;
         }}
-        div[data-testid="stButton"] button[aria-label="Taktyp 1"] {{
-            background-image: url("{taktyp_1_url}");
+        .taktyp-card img {{
+            width: 100%;
+            height: 360px;
+            object-fit: cover;
+            display: block;
         }}
-        div[data-testid="stButton"] button[aria-label="Taktyp 3"] {{
-            background-image: url("{taktyp_3_url}");
+        .taktyp-card span {{
+            background: #0f766e;
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 1.2rem;
+            padding: 16px 20px;
+            text-align: center;
         }}
-        div[data-testid="stButton"] button[aria-label="Taktyp 1"]:hover,
-        div[data-testid="stButton"] button[aria-label="Taktyp 3"]:hover {{
+        .taktyp-card:hover {{
             transform: translateY(-4px);
             box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
             border-color: rgba(45, 212, 191, 0.7);
         }}
+        @media (max-width: 900px) {{
+            .taktyp-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .taktyp-card img {{
+                height: 320px;
+            }}
+        }}
         </style>
+        <div class="taktyp-grid">
+            <a class="taktyp-card" role="button" href="?taktyp={taktyp_1_param}">
+                <img src="{taktyp_1_url}" alt="Taktyp 1" />
+                <span>Taktyp 1</span>
+            </a>
+            <a class="taktyp-card" role="button" href="?taktyp={taktyp_3_param}">
+                <img src="{taktyp_3_url}" alt="Taktyp 3" />
+                <span>Taktyp 3</span>
+            </a>
+        </div>
         """,
         unsafe_allow_html=True,
     )
-
-    left, right = st.columns(2, gap="large")
-    with left:
-        if st.button("Taktyp 1", key="select_taktyp_1"):
-            st.session_state["roof_config"] = "Taktyp 1"
-            st.rerun()
-    with right:
-        if st.button("Taktyp 3", key="select_taktyp_3"):
-            st.session_state["roof_config"] = "Taktyp 3"
-            st.rerun()
 
     return None
 
