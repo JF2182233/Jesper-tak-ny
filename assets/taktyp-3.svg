@@ -1,0 +1,10 @@
+<svg width="640" height="800" viewBox="0 0 640 800" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="800" fill="#f8fafc"/>
+  <rect x="80" y="330" width="480" height="260" fill="#f1f5f9" stroke="#cbd5f5" stroke-width="4"/>
+  <polygon points="80,330 320,160 560,330" fill="#b91c1c" stroke="#7f1d1d" stroke-width="4"/>
+  <polygon points="320,330 470,260 600,330 450,400" fill="#9f1239" stroke="#7f1d1d" stroke-width="4"/>
+  <rect x="150" y="400" width="120" height="110" fill="#e2e8f0" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="380" y="420" width="110" height="90" fill="#e2e8f0" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="0" y="680" width="640" height="120" fill="#0f766e"/>
+  <text x="320" y="760" fill="#f8fafc" font-size="48" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">Taktyp 3</text>
+</svg>
