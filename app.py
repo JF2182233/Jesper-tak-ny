@@ -5,8 +5,11 @@
 
 from __future__ import annotations
 
+import base64
 import math
+import mimetypes
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Sequence, Tuple
 
 import pandas as pd
@@ -19,6 +22,8 @@ from shapely.ops import unary_union
 # ============================
 # CONFIG (all knobs live here)
 # ============================
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+
 APP = {
     "page_title": "Roof Estimate",
     "layout": "wide",
@@ -55,6 +60,10 @@ APP = {
 If you’re unsure, enter your best guess — this tool is for a quick estimate.
         """,
         "rough_note": "Note: This is a rough estimate. Final quote may change after verification / site check.",
+    },
+    "taktyp_images": {
+        "Taktyp 1": ASSETS_DIR / "taktyp-1.svg",
+        "Taktyp 3": ASSETS_DIR / "taktyp-3.svg",
     },
 }
 
@@ -440,18 +449,81 @@ def render_help_tab() -> None:
     st.markdown(APP["copy"]["help_md"])
 
 
-def render_estimate_tab() -> None:
+def image_data_url(path: Path) -> str:
+    data = path.read_bytes()
+    mime, _ = mimetypes.guess_type(path.name)
+    if not mime:
+        mime = "image/png"
+    encoded = base64.b64encode(data).decode("utf-8")
+    return f"data:{mime};base64,{encoded}"
+
+
+def render_roof_selector() -> str | None:
+    selected = st.session_state.get("roof_config")
+    if selected:
+        return selected
+
+    taktyp_1_url = image_data_url(APP["taktyp_images"]["Taktyp 1"])
+    taktyp_3_url = image_data_url(APP["taktyp_images"]["Taktyp 3"])
+    st.markdown(
+        f"""
+        <style>
+        div[data-testid="stButton"] button[aria-label="Taktyp 1"],
+        div[data-testid="stButton"] button[aria-label="Taktyp 3"] {{
+            width: 100%;
+            min-height: 360px;
+            padding: 0;
+            border-radius: 16px;
+            border: 2px solid rgba(15, 118, 110, 0.35);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: transparent;
+            font-size: 0;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }}
+        div[data-testid="stButton"] button[aria-label="Taktyp 1"] {{
+            background-image: url("{taktyp_1_url}");
+        }}
+        div[data-testid="stButton"] button[aria-label="Taktyp 3"] {{
+            background-image: url("{taktyp_3_url}");
+        }}
+        div[data-testid="stButton"] button[aria-label="Taktyp 1"]:hover,
+        div[data-testid="stButton"] button[aria-label="Taktyp 3"]:hover {{
+            transform: translateY(-4px);
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+            border-color: rgba(45, 212, 191, 0.7);
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    left, right = st.columns(2, gap="large")
+    with left:
+        if st.button("Taktyp 1", key="select_taktyp_1"):
+            st.session_state["roof_config"] = "Taktyp 1"
+            st.rerun()
+    with right:
+        if st.button("Taktyp 3", key="select_taktyp_3"):
+            st.session_state["roof_config"] = "Taktyp 3"
+            st.rerun()
+
+    return None
+
+
+def render_estimate_tab(roof_config: str) -> None:
     left, right = st.columns([1.1, 1.2], gap="large")
 
     with left:
+        if st.button("Byt taktyp"):
+            st.session_state.pop("roof_config", None)
+            st.session_state.pop("face_results", None)
+            st.rerun()
+
         st.subheader("1) Roof measurements")
-        roof_config = st.selectbox(
-            "Taktyp",
-            [
-                "Taktyp 1",
-                "Taktyp 3",
-            ],
-        )
+        st.caption(f"Vald taktyp: **{roof_config}**")
 
         with st.form("estimate_form", clear_on_submit=False):
             units = st.radio("Units", ["Meters (recommended)", "Millimeters"], horizontal=True)
@@ -685,6 +757,10 @@ def render_estimate_tab() -> None:
 def main() -> None:
     setup_page()
 
+    roof_config = render_roof_selector()
+    if not roof_config:
+        return
+
     st.title(APP["copy"]["title"])
     st.caption(APP["copy"]["caption"])
 
@@ -692,7 +768,7 @@ def main() -> None:
     with tab_help:
         render_help_tab()
     with tab_est:
-        render_estimate_tab()
+        render_estimate_tab(roof_config)
 
 
 if __name__ == "__main__":
