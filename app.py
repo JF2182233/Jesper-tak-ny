@@ -458,34 +458,7 @@ def image_data_url(path: Path) -> str:
     return f"data:{mime};base64,{encoded}"
 
 
-def get_query_params() -> dict:
-    if hasattr(st, "query_params"):
-        return dict(st.query_params)
-    return st.experimental_get_query_params()
-
-
-def set_query_params(**params: str) -> None:
-    if hasattr(st, "query_params"):
-        st.query_params.clear()
-        st.query_params.update(params)
-    else:
-        st.experimental_set_query_params(**params)
-
-
 def render_roof_selector() -> str | None:
-    params = get_query_params()
-    taktyp_param = params.get("taktyp")
-    if isinstance(taktyp_param, list):
-        taktyp_param = taktyp_param[0] if taktyp_param else None
-    if taktyp_param in ("1", "Taktyp 1"):
-        st.session_state["roof_config"] = "Taktyp 1"
-        set_query_params()
-        return "Taktyp 1"
-    if taktyp_param in ("3", "Taktyp 3"):
-        st.session_state["roof_config"] = "Taktyp 3"
-        set_query_params()
-        return "Taktyp 3"
-
     selected = st.session_state.get("roof_config")
     if selected:
         return selected
@@ -495,57 +468,47 @@ def render_roof_selector() -> str | None:
     st.markdown(
         f"""
         <style>
-        .taktyp-grid {{
-            display: grid;
-            grid-template-columns: repeat(2, minmax(220px, 1fr));
-            gap: 24px;
-            margin-top: 24px;
-        }}
-        .taktyp-card {{
-            display: flex;
-            flex-direction: column;
-            text-decoration: none;
-            border-radius: 18px;
-            overflow: hidden;
-            border: 2px solid rgba(15, 118, 110, 0.35);
-            background: #0f172a;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        }}
-        .taktyp-card img {{
+        div[data-testid="stButton"] button[aria-label="Taktyp 1"],
+        div[data-testid="stButton"] button[aria-label="Taktyp 3"] {{
             width: 100%;
-            height: 420px;
-            object-fit: cover;
-            display: block;
+            min-height: 360px;
+            padding: 0;
+            border-radius: 16px;
+            border: 2px solid rgba(15, 118, 110, 0.35);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: transparent;
+            font-size: 0;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }}
-        .taktyp-card span {{
-            display: block;
-            padding: 18px;
-            text-align: center;
-            font-size: 22px;
-            color: #f8fafc;
-            background: #0f766e;
-            letter-spacing: 0.5px;
+        div[data-testid="stButton"] button[aria-label="Taktyp 1"] {{
+            background-image: url("{taktyp_1_url}");
         }}
-        .taktyp-card:hover {{
+        div[data-testid="stButton"] button[aria-label="Taktyp 3"] {{
+            background-image: url("{taktyp_3_url}");
+        }}
+        div[data-testid="stButton"] button[aria-label="Taktyp 1"]:hover,
+        div[data-testid="stButton"] button[aria-label="Taktyp 3"]:hover {{
             transform: translateY(-4px);
             box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
             border-color: rgba(45, 212, 191, 0.7);
         }}
         </style>
-        <div class="taktyp-grid">
-          <a class="taktyp-card" href="?taktyp=1" aria-label="Taktyp 1">
-            <img src="{taktyp_1_url}" alt="Taktyp 1" />
-            <span>Taktyp 1</span>
-          </a>
-          <a class="taktyp-card" href="?taktyp=3" aria-label="Taktyp 3">
-            <img src="{taktyp_3_url}" alt="Taktyp 3" />
-            <span>Taktyp 3</span>
-          </a>
-        </div>
         """,
         unsafe_allow_html=True,
     )
+
+    left, right = st.columns(2, gap="large")
+    with left:
+        if st.button("Taktyp 1", key="select_taktyp_1"):
+            st.session_state["roof_config"] = "Taktyp 1"
+            st.rerun()
+    with right:
+        if st.button("Taktyp 3", key="select_taktyp_3"):
+            st.session_state["roof_config"] = "Taktyp 3"
+            st.rerun()
 
     return None
 
@@ -557,7 +520,6 @@ def render_estimate_tab(roof_config: str) -> None:
         if st.button("Byt taktyp"):
             st.session_state.pop("roof_config", None)
             st.session_state.pop("face_results", None)
-            set_query_params()
             st.rerun()
 
         st.subheader("1) Roof measurements")
