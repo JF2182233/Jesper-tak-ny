@@ -483,54 +483,49 @@ def render_roof_selector() -> str | None:
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 28px;
         }}
-        .taktyp-card {{
+        .taktyp-link {{
             display: flex;
             flex-direction: column;
-            align-items: stretch;
+            gap: 12px;
             text-decoration: none;
-            border-radius: 18px;
-            overflow: hidden;
-            border: 2px solid rgba(15, 118, 110, 0.35);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-            background: #0f172a;
+            color: inherit;
         }}
-        .taktyp-card img {{
+        .taktyp-link img {{
             width: 100%;
             height: 360px;
             object-fit: cover;
             display: block;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            transition: transform 0.2s ease, border-color 0.2s ease;
         }}
-        .taktyp-card span {{
-            background: #0f766e;
-            color: #e2e8f0;
-            font-weight: 600;
-            font-size: 1.2rem;
-            padding: 16px 20px;
-            text-align: center;
-        }}
-        .taktyp-card:hover {{
-            transform: translateY(-4px);
-            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+        .taktyp-link:hover img {{
+            transform: translateY(-2px);
             border-color: rgba(45, 212, 191, 0.7);
+        }}
+        .taktyp-label {{
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #e2e8f0;
         }}
         @media (max-width: 900px) {{
             .taktyp-grid {{
                 grid-template-columns: 1fr;
             }}
-            .taktyp-card img {{
+            .taktyp-link img {{
                 height: 320px;
             }}
         }}
         </style>
         <div class="taktyp-grid">
-            <a class="taktyp-card" role="button" href="?taktyp={taktyp_1_param}">
+            <a class="taktyp-link" role="button" href="?taktyp={taktyp_1_param}">
                 <img src="{taktyp_1_url}" alt="Taktyp 1" />
-                <span>Taktyp 1</span>
+                <div class="taktyp-label">Taktyp 1</div>
             </a>
-            <a class="taktyp-card" role="button" href="?taktyp={taktyp_3_param}">
+            <a class="taktyp-link" role="button" href="?taktyp={taktyp_3_param}">
                 <img src="{taktyp_3_url}" alt="Taktyp 3" />
-                <span>Taktyp 3</span>
+                <div class="taktyp-label">Taktyp 3</div>
             </a>
         </div>
         """,
