@@ -5,8 +5,11 @@
 
 from __future__ import annotations
 
+import base64
 import math
+import mimetypes
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Sequence, Tuple
 
 import pandas as pd
@@ -19,6 +22,8 @@ from shapely.ops import unary_union
 # ============================
 # CONFIG (all knobs live here)
 # ============================
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+
 APP = {
     "page_title": "Roof Estimate",
     "layout": "wide",
@@ -55,6 +60,10 @@ APP = {
 If you’re unsure, enter your best guess — this tool is for a quick estimate.
         """,
         "rough_note": "Note: This is a rough estimate. Final quote may change after verification / site check.",
+    },
+    "taktyp_images": {
+        "Taktyp 1": ASSETS_DIR / "taktyp-1.svg",
+        "Taktyp 3": ASSETS_DIR / "taktyp-3.svg",
     },
 }
 
@@ -440,18 +449,119 @@ def render_help_tab() -> None:
     st.markdown(APP["copy"]["help_md"])
 
 
-def render_estimate_tab() -> None:
+def image_data_url(path: Path) -> str:
+    data = path.read_bytes()
+    mime, _ = mimetypes.guess_type(path.name)
+    if not mime:
+        mime = "image/png"
+    encoded = base64.b64encode(data).decode("utf-8")
+    return f"data:{mime};base64,{encoded}"
+
+
+def get_query_params() -> dict:
+    if hasattr(st, "query_params"):
+        return dict(st.query_params)
+    return st.experimental_get_query_params()
+
+
+def set_query_params(**params: str) -> None:
+    if hasattr(st, "query_params"):
+        st.query_params.clear()
+        st.query_params.update(params)
+    else:
+        st.experimental_set_query_params(**params)
+
+
+def render_roof_selector() -> str | None:
+    params = get_query_params()
+    taktyp_param = params.get("taktyp")
+    if isinstance(taktyp_param, list):
+        taktyp_param = taktyp_param[0] if taktyp_param else None
+    if taktyp_param in ("1", "Taktyp 1"):
+        st.session_state["roof_config"] = "Taktyp 1"
+        set_query_params()
+        return "Taktyp 1"
+    if taktyp_param in ("3", "Taktyp 3"):
+        st.session_state["roof_config"] = "Taktyp 3"
+        set_query_params()
+        return "Taktyp 3"
+
+    selected = st.session_state.get("roof_config")
+    if selected:
+        return selected
+
+    taktyp_1_url = image_data_url(APP["taktyp_images"]["Taktyp 1"])
+    taktyp_3_url = image_data_url(APP["taktyp_images"]["Taktyp 3"])
+    st.markdown(
+        f"""
+        <style>
+        .taktyp-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }}
+        .taktyp-card {{
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 2px solid rgba(15, 118, 110, 0.35);
+            background: #0f172a;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }}
+        .taktyp-card img {{
+            width: 100%;
+            height: 420px;
+            object-fit: cover;
+            display: block;
+        }}
+        .taktyp-card span {{
+            display: block;
+            padding: 18px;
+            text-align: center;
+            font-size: 22px;
+            color: #f8fafc;
+            background: #0f766e;
+            letter-spacing: 0.5px;
+        }}
+        .taktyp-card:hover {{
+            transform: translateY(-4px);
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+            border-color: rgba(45, 212, 191, 0.7);
+        }}
+        </style>
+        <div class="taktyp-grid">
+          <a class="taktyp-card" href="?taktyp=1" aria-label="Taktyp 1">
+            <img src="{taktyp_1_url}" alt="Taktyp 1" />
+            <span>Taktyp 1</span>
+          </a>
+          <a class="taktyp-card" href="?taktyp=3" aria-label="Taktyp 3">
+            <img src="{taktyp_3_url}" alt="Taktyp 3" />
+            <span>Taktyp 3</span>
+          </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    return None
+
+
+def render_estimate_tab(roof_config: str) -> None:
     left, right = st.columns([1.1, 1.2], gap="large")
 
     with left:
+        if st.button("Byt taktyp"):
+            st.session_state.pop("roof_config", None)
+            st.session_state.pop("face_results", None)
+            set_query_params()
+            st.rerun()
+
         st.subheader("1) Roof measurements")
-        roof_config = st.selectbox(
-            "Taktyp",
-            [
-                "Taktyp 1",
-                "Taktyp 3",
-            ],
-        )
+        st.caption(f"Vald taktyp: **{roof_config}**")
 
         with st.form("estimate_form", clear_on_submit=False):
             units = st.radio("Units", ["Meters (recommended)", "Millimeters"], horizontal=True)
@@ -685,6 +795,10 @@ def render_estimate_tab() -> None:
 def main() -> None:
     setup_page()
 
+    roof_config = render_roof_selector()
+    if not roof_config:
+        return
+
     st.title(APP["copy"]["title"])
     st.caption(APP["copy"]["caption"])
 
@@ -692,7 +806,7 @@ def main() -> None:
     with tab_help:
         render_help_tab()
     with tab_est:
-        render_estimate_tab()
+        render_estimate_tab(roof_config)
 
 
 if __name__ == "__main__":
