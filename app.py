@@ -27,21 +27,100 @@ TAKTYP_1_IMAGE_URL = "https://www.xn--pltgrossisten-qfb.se/wp-content/uploads/20
 TAKTYP_3_IMAGE_URL = "https://www.xn--pltgrossisten-qfb.se/wp-content/uploads/2025/09/Taktyp-3-NY-berakningssystem.jpg"
 
 APP = {
-    "page_title": "Roof Estimate",
+    "page_title": "Roof Estimate Studio",
     "layout": "wide",
     "styles": """
         <style>
+        :root {
+            color-scheme: dark;
+        }
         .stApp {
-            background: linear-gradient(180deg, #0f172a 0%, #1e293b 55%, #0b1324 100%);
+            background: radial-gradient(circle at top, #111827 0%, #0b1120 45%, #070b15 100%);
             color: #e2e8f0;
+        }
+        .block-container {
+            padding-top: 1.8rem;
+            padding-bottom: 3rem;
+        }
+        h1, h2, h3, h4 {
+            color: #f8fafc;
+        }
+        .hero-card {
+            padding: 24px 28px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
+            margin-bottom: 18px;
+        }
+        .hero-title {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+        .hero-subtitle {
+            font-size: 1.05rem;
+            color: rgba(226, 232, 240, 0.8);
+            margin-bottom: 1.2rem;
+        }
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .badge {
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #e2f9ff;
+        }
+        .section-card {
+            padding: 18px 20px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .muted {
+            color: rgba(226, 232, 240, 0.7);
+        }
+        .taktyp-link img {
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+        }
+        .stButton > button {
+            background: linear-gradient(135deg, #38bdf8, #22d3ee);
+            border: none;
+            color: #0f172a;
+            font-weight: 600;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(56, 189, 248, 0.3);
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 12px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            background: rgba(15, 23, 42, 0.55);
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 8px 16px;
+        }
+        .stTabs [aria-selected="true"] {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: rgba(56, 189, 248, 0.6);
         }
         </style>
     """,
     "copy": {
-        "title": "Roof Estimate",
+        "title": "Roof Estimate Studio",
         "caption": (
-            "Enter your measurements to get a quick material and price estimate. "
-            "We’ll confirm final quantities before ordering."
+            "Design your roof takeoff in minutes. Compare materials, preview panel layouts, "
+            "and get a high-confidence estimate before we finalize the order."
         ),
         "estimate_tab": "Provide estimate",
         "help_tab": "How to measure",
@@ -62,6 +141,12 @@ APP = {
 If you’re unsure, enter your best guess — this tool is for a quick estimate.
         """,
         "rough_note": "Note: This is a rough estimate. Final quote may change after verification / site check.",
+        "hero_steps": [
+            "1. Pick a roof type",
+            "2. Add measurements",
+            "3. Review panel layout",
+            "4. Export a confident estimate",
+        ],
     },
     "taktyp_images": {
         "Taktyp 1": TAKTYP_1_IMAGE_URL,
@@ -542,6 +627,24 @@ def render_roof_selector() -> str | None:
 
 
 def render_estimate_tab(roof_config: str) -> None:
+    st.markdown(
+        """
+        <div class="hero-card">
+            <div class="hero-title">Build a sharp, confident roof estimate</div>
+            <div class="hero-subtitle">
+                Visualize your roof layout, adjust sheet settings, and get a clean breakdown for installers.
+            </div>
+            <div class="hero-badges">
+                <span class="badge">Instant area + material math</span>
+                <span class="badge">Panel layout preview</span>
+                <span class="badge">Side-by-side roof faces</span>
+                <span class="badge">Installer-ready cut list</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     left, right = st.columns([1.1, 1.2], gap="large")
 
     with left:
@@ -789,8 +892,18 @@ def main() -> None:
     if not roof_config:
         return
 
-    st.title(APP["copy"]["title"])
-    st.caption(APP["copy"]["caption"])
+    st.markdown(
+        f"""
+        <div class="section-card">
+            <div class="hero-title">{APP["copy"]["title"]}</div>
+            <div class="hero-subtitle">{APP["copy"]["caption"]}</div>
+            <div class="hero-badges">
+                {"".join([f"<span class='badge'>{step}</span>" for step in APP["copy"]["hero_steps"]])}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     tab_est, tab_help = st.tabs([APP["copy"]["estimate_tab"], APP["copy"]["help_tab"]])
     with tab_help:
