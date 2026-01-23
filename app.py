@@ -817,10 +817,10 @@ def render_estimate_tab(roof_config: str) -> None:
 
     with right:
         st.subheader("Preview (for confirmation)")
-        for face in face_results:
+        for idx, face in enumerate(face_results):
             st.markdown(f"**{face.name}**")
             fig = plot_face_and_panels(face.poly, face.panels)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"face_preview_{idx}")
 
         st.subheader("Installer details (cut list / panel data)")
         for face in face_results:
