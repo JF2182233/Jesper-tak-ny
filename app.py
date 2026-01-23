@@ -32,8 +32,64 @@ APP = {
     "styles": """
         <style>
         .stApp {
-            background: linear-gradient(180deg, #0f172a 0%, #1e293b 55%, #0b1324 100%);
+            background: radial-gradient(circle at top, #1f2937 0%, #111827 45%, #0b1220 100%);
+            color: #f8fafc;
+        }
+        .stApp [data-testid="stHeader"] {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(6px);
+        }
+        .stApp [data-testid="stSidebar"] {
+            background-color: rgba(15, 23, 42, 0.75);
+            border-right: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5 {
+            color: #f8fafc;
+        }
+        .stApp a {
+            color: #38bdf8;
+        }
+        .stApp hr {
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+        .stButton > button {
+            background: linear-gradient(135deg, #38bdf8, #22d3ee);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #0b1220;
+            font-weight: 600;
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+        }
+        .stButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.2);
+        }
+        .stButton > button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .stTabs [data-baseweb="tab"] {
+            background: rgba(30, 41, 59, 0.7);
             color: #e2e8f0;
+            border-radius: 10px;
+        }
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background: rgba(56, 189, 248, 0.2);
+            color: #f8fafc;
+        }
+        div[data-testid="stMetric"] {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 14px;
+            padding: 12px;
+        }
+        div[data-testid="stMetric"] label,
+        div[data-testid="stMetric"] div {
+            color: #f8fafc;
+        }
+        .stDataFrame {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
         }
         </style>
     """,
@@ -333,8 +389,8 @@ def plot_face_and_panels(poly: Polygon, panels: Sequence[Panel]) -> go.Figure:
                 y=list(y),
                 mode="lines",
                 fill="toself",
-                fillcolor="rgba(30, 144, 255, 0.25)",
-                line=dict(color="rgba(30, 144, 255, 0.6)"),
+                fillcolor="rgba(56, 189, 248, 0.25)",
+                line=dict(color="rgba(56, 189, 248, 0.75)"),
                 showlegend=False,
             )
         )
@@ -352,19 +408,44 @@ def plot_face_and_panels(poly: Polygon, panels: Sequence[Panel]) -> go.Figure:
     y0, y1 = bounds_poly.bounds[1], bounds_poly.bounds[3]
     for p in panels:
         for x in (p.u0, p.u1):
-            fig.add_trace(go.Scatter(x=[x, x], y=[y0, y1], mode="lines", showlegend=False))
+            fig.add_trace(
+                go.Scatter(
+                    x=[x, x],
+                    y=[y0, y1],
+                    mode="lines",
+                    line=dict(color="rgba(148, 163, 184, 0.45)", dash="dot"),
+                    showlegend=False,
+                )
+            )
 
         mid = (p.u0 + p.u1) / 2.0
         spans = vertical_spans(poly, mid)
         if spans:
             vmin, vmax = max(spans, key=lambda s: s[1] - s[0])
-            fig.add_annotation(x=mid, y=(vmin + vmax) / 2.0, text=f"{p.max_len:.0f}", showarrow=False)
+            fig.add_annotation(
+                x=mid,
+                y=(vmin + vmax) / 2.0,
+                text=f"{p.max_len:.0f}",
+                showarrow=False,
+                font=dict(color="#f8fafc"),
+            )
 
     fig.update_layout(
         xaxis_title="Across roof (mm)",
         yaxis_title="Up roof face (mm)",
         height=520,
         margin=dict(l=10, r=10, t=40, b=10),
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="rgba(15, 23, 42, 0.6)",
+        font=dict(color="#f8fafc"),
+    )
+    fig.update_xaxes(
+        gridcolor="rgba(148, 163, 184, 0.2)",
+        zerolinecolor="rgba(148, 163, 184, 0.25)",
+    )
+    fig.update_yaxes(
+        gridcolor="rgba(148, 163, 184, 0.2)",
+        zerolinecolor="rgba(148, 163, 184, 0.25)",
     )
     return fig
 
@@ -511,19 +592,19 @@ def render_roof_selector() -> str | None:
             object-fit: contain;
             display: block;
             border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            background-color: #ffffff;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background-color: rgba(15, 23, 42, 0.6);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }}
         .taktyp-link:hover img {{
             transform: translateY(-2px);
-            border-color: rgba(45, 212, 191, 0.7);
+            border-color: rgba(56, 189, 248, 0.7);
         }}
         .taktyp-label {{
             text-align: center;
             font-weight: 600;
             font-size: 1.1rem;
-            color: #e2e8f0;
+            color: #f8fafc;
         }}
         @media (max-width: 900px) {{
             .taktyp-grid {{
