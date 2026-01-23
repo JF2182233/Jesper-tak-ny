@@ -58,6 +58,7 @@ APP = {
 3. **Bump-out start** – distance from the left edge to where the bump-out starts.
 4. **Bump-out width** – total width of the bump-out section.
 5. **Bump-out depth** – how far “up the roof” the bump-out goes.
+6. **Small gable** – if you have a smaller gable, add its width/length (and optional bump-out).
 
 If you’re unsure, enter your best guess — this tool is for a quick estimate.
         """,
@@ -89,6 +90,7 @@ DEFAULTS = {
     "mini_bump_start": 1.0,
     "mini_bump_width": 2.0,
     "mini_bump_depth": 0.8,
+    "include_small_gable": True,
     "material_index": 0,
     "sheet_width_mm": 475.0,
     "side_overlap_mm": 0.0,
@@ -431,6 +433,8 @@ def compute_roof(
     price_per_m2: float,
     side_b_inputs: RoofInputsMM | None = None,
     side_b_identical: bool = True,
+    gable_inputs: RoofInputsMM | None = None,
+    gable_identical: bool = True,
 ) -> List[RoofFaceResult]:
     results: List[RoofFaceResult] = []
 
@@ -439,6 +443,12 @@ def compute_roof(
     if config in ("Taktyp 1", "Taktyp 3"):
         side_inputs = main_inputs if side_b_identical or side_b_inputs is None else side_b_inputs
         results.append(compute_face("Main roof – Side B", side_inputs, sheet, price_per_m2))
+
+    if config == "Taktyp 3" and gable_inputs is not None:
+        gable_side_inputs = gable_inputs
+        results.append(compute_face("Small gable – Side A", gable_side_inputs, sheet, price_per_m2))
+        if gable_identical:
+            results.append(compute_face("Small gable – Side B", gable_side_inputs, sheet, price_per_m2))
 
     return results
 
@@ -638,6 +648,63 @@ def render_estimate_tab(roof_config: str) -> None:
                     units,
                 )
 
+            gable_inputs: RoofInputs | None = None
+            gable_identical = True
+            if roof_config == "Taktyp 3":
+                st.divider()
+                st.subheader("Small gable (utbyggnad)")
+                include_small_gable = st.checkbox(
+                    "Include small gable measurements",
+                    value=DEFAULTS["include_small_gable"],
+                    help="Adds the smaller gable roof faces to the estimate.",
+                )
+                if include_small_gable:
+                    st.markdown("**Small gable – Side A**")
+                    mini_roof_width = st.number_input(
+                        "Small gable roof width (along the eaves)",
+                        min_value=LIMITS["roof_width_min"],
+                        value=DEFAULTS["mini_roof_width"],
+                        step=0.1,
+                        key="mini_roof_width",
+                    )
+                    mini_roof_length = st.number_input(
+                        "Small gable roof length (eave → ridge) on the roof surface",
+                        min_value=LIMITS["roof_length_min"],
+                        value=DEFAULTS["mini_roof_length"],
+                        step=0.1,
+                        key="mini_roof_length",
+                    )
+                    st.markdown("**Small gable bump-out (optional)**")
+                    mini_bump_start = st.number_input(
+                        "Small gable bump-out start",
+                        min_value=LIMITS["bump_min"],
+                        value=DEFAULTS["mini_bump_start"],
+                        step=0.05,
+                        key="mini_bump_start",
+                    )
+                    mini_bump_width = st.number_input(
+                        "Small gable bump-out width",
+                        min_value=LIMITS["bump_min"],
+                        value=DEFAULTS["mini_bump_width"],
+                        step=0.05,
+                        key="mini_bump_width",
+                    )
+                    mini_bump_depth = st.number_input(
+                        "Small gable bump-out depth",
+                        min_value=LIMITS["bump_min"],
+                        value=DEFAULTS["mini_bump_depth"],
+                        step=0.05,
+                        key="mini_bump_depth",
+                    )
+                    gable_inputs = RoofInputs(
+                        mini_roof_width,
+                        mini_roof_length,
+                        mini_bump_start,
+                        mini_bump_width,
+                        mini_bump_depth,
+                        units,
+                    )
+
             st.divider()
             st.subheader("2) Material choice")
 
@@ -675,6 +742,12 @@ def render_estimate_tab(roof_config: str) -> None:
                 mm_side_b = side_b_inputs.to_mm()
                 inputs_by_name.append(("Main roof – Side B", mm_side_b))
 
+            mm_gable = None
+            if gable_inputs is not None:
+                mm_gable = gable_inputs.to_mm()
+                inputs_by_name.append(("Small gable – Side A", mm_gable))
+                inputs_by_name.append(("Small gable – Side B", mm_gable))
+
             for name, inputs in inputs_by_name:
                 errors = validate_inputs(inputs)
                 if errors:
@@ -692,6 +765,8 @@ def render_estimate_tab(roof_config: str) -> None:
                     price_per_m2,
                     side_b_inputs=mm_side_b,
                     side_b_identical=side_b_identical,
+                    gable_inputs=mm_gable,
+                    gable_identical=gable_identical,
                 )
             except ValueError as exc:
                 st.error(str(exc))
