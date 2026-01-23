@@ -707,6 +707,15 @@ def render_estimate_outputs(
 
     def render_final_overview() -> None:
         st.subheader("FINAL OVERVIEW")
+        st.markdown("**Preview (all faces)**")
+        preview_cols = st.columns(4)
+        for idx, face in enumerate(face_results):
+            fig = plot_face_and_panels(face.poly, face.panels)
+            preview_cols[idx % 4].plotly_chart(
+                fig,
+                use_container_width=True,
+                key=f"overview_preview_{idx}",
+            )
         panel_lengths: List[int] = []
         for face in face_results:
             for panel in face.panels:
