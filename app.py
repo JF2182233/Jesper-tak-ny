@@ -817,21 +817,14 @@ def render_estimate_tab(roof_config: str) -> None:
 
     with right:
         st.subheader("Preview (for confirmation)")
-        face_names = [face.name for face in face_results]
-        default_face_idx = face_names.index("Main roof – Side A") if "Main roof – Side A" in face_names else 0
-        preview_face = st.selectbox("Preview face", face_names, index=default_face_idx)
-        selected_face = next(face for face in face_results if face.name == preview_face)
-        fig = plot_face_and_panels(selected_face.poly, selected_face.panels)
-        st.plotly_chart(fig, use_container_width=True)
+        for face in face_results:
+            st.markdown(f"**{face.name}**")
+            fig = plot_face_and_panels(face.poly, face.panels)
+            st.plotly_chart(fig, use_container_width=True)
 
-        with st.expander("Installer details (cut list / panel data)"):
-            installer_face = st.selectbox(
-                "Installer details for",
-                face_names,
-                index=default_face_idx,
-                key="installer_face",
-            )
-            installer_face_data = next(face for face in face_results if face.name == installer_face)
+        st.subheader("Installer details (cut list / panel data)")
+        for face in face_results:
+            st.markdown(f"**{face.name}**")
             df = pd.DataFrame(
                 [
                     {
@@ -844,13 +837,13 @@ def render_estimate_tab(roof_config: str) -> None:
                         "Right length (mm)": round(p.right_len, 1),
                         "Note": p.note,
                     }
-                    for p in installer_face_data.panels
+                    for p in face.panels
                 ]
             )
             st.dataframe(df, use_container_width=True)
 
-            longest = max((p.max_len for p in installer_face_data.panels), default=0.0)
-            st.write(f"**Number of panels:** {len(installer_face_data.panels)}")
+            longest = max((p.max_len for p in face.panels), default=0.0)
+            st.write(f"**Number of panels:** {len(face.panels)}")
             st.write(f"**Longest required panel length (approx):** {longest:.0f} mm")
 
 
