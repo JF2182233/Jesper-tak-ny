@@ -708,14 +708,18 @@ def render_estimate_outputs(
     def render_final_overview() -> None:
         st.subheader("FINAL OVERVIEW")
         st.markdown("**Preview (all faces)**")
-        preview_cols = st.columns(4)
-        for idx, face in enumerate(face_results):
-            fig = plot_face_and_panels(face.poly, face.panels)
-            preview_cols[idx % 4].plotly_chart(
-                fig,
-                use_container_width=True,
-                key=f"overview_preview_{idx}",
-            )
+        for row_start in range(0, len(face_results), 2):
+            preview_cols = st.columns(2)
+            for offset in range(2):
+                idx = row_start + offset
+                if idx >= len(face_results):
+                    continue
+                fig = plot_face_and_panels(face_results[idx].poly, face_results[idx].panels)
+                preview_cols[offset].plotly_chart(
+                    fig,
+                    use_container_width=True,
+                    key=f"overview_preview_{idx}",
+                )
         panel_lengths: List[int] = []
         for face in face_results:
             for panel in face.panels:
@@ -740,6 +744,7 @@ def render_estimate_outputs(
                     "Cost per panel": format_sek(cost_per_panel),
                 }
             )
+        st.markdown("**Aggregated panel count**")
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     if layout == "split":
