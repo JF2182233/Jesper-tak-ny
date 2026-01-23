@@ -170,6 +170,24 @@ def panelize_face(poly: Polygon, coverage_w: float, direction="left_to_right"):
 
 def plot_face_and_panels(poly, panels):
     fig = go.Figure()
+    y_top = poly.bounds[3]
+
+    # Panel rectangles (ordered blanks)
+    for p in panels:
+        if p.max_len <= 0:
+            continue
+        y_bottom = y_top - p.max_len
+        rect = box(p.u0, y_bottom, p.u1, y_top)
+        x, y = rect.exterior.xy
+        fig.add_trace(go.Scatter(
+            x=list(x),
+            y=list(y),
+            mode="lines",
+            fill="toself",
+            fillcolor="rgba(30, 144, 255, 0.25)",
+            line=dict(color="rgba(30, 144, 255, 0.6)"),
+            showlegend=False,
+        ))
 
     # Outline
     def add_poly(p, name):
