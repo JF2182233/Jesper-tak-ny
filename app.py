@@ -23,7 +23,8 @@ from shapely.ops import unary_union
 # ============================
 # CONFIG (all knobs live here)
 # ============================
-ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+TAKTYP_1_IMAGE_URL = "https://example.com/taktyp-1.jpg"
+TAKTYP_3_IMAGE_URL = "https://example.com/taktyp-3.jpg"
 
 APP = {
     "page_title": "Roof Estimate",
@@ -63,8 +64,8 @@ If you’re unsure, enter your best guess — this tool is for a quick estimate.
         "rough_note": "Note: This is a rough estimate. Final quote may change after verification / site check.",
     },
     "taktyp_images": {
-        "Taktyp 1": ASSETS_DIR / "taktyp-1.svg",
-        "Taktyp 3": ASSETS_DIR / "taktyp-3.svg",
+        "Taktyp 1": TAKTYP_1_IMAGE_URL,
+        "Taktyp 3": TAKTYP_3_IMAGE_URL,
     },
 }
 
@@ -450,9 +451,13 @@ def render_help_tab() -> None:
     st.markdown(APP["copy"]["help_md"])
 
 
-def image_data_url(path: Path) -> str:
-    data = path.read_bytes()
-    mime, _ = mimetypes.guess_type(path.name)
+def image_data_url(source: str | Path) -> str:
+    if isinstance(source, str):
+        if source.startswith(("http://", "https://", "data:")):
+            return source
+        source = Path(source)
+    data = source.read_bytes()
+    mime, _ = mimetypes.guess_type(source.name)
     if not mime:
         mime = "image/png"
     encoded = base64.b64encode(data).decode("utf-8")
