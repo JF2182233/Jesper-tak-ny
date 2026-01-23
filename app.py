@@ -703,6 +703,16 @@ def render_estimate_outputs(
             st.write(f"**Number of panels:** {len(face.panels)}")
             st.write(f"**Longest required panel length (approx):** {longest:.0f} mm")
 
+    def render_final_overview() -> None:
+        st.subheader("FINAL OVERVIEW")
+        total_panels = sum(len(face.panels) for face in face_results)
+        total_length_mm = sum(p.max_len for face in face_results for p in face.panels)
+        total_length_m = total_length_mm / NUMERICS["M_TO_MM"]
+        c1, c2 = st.columns(2)
+        c1.metric("Total number of panels (all sides)", total_panels)
+        c2.metric("Total panel length required (all sides)", f"{total_length_m:.2f} m")
+        st.caption(f"Total length in millimeters: {total_length_mm:.0f} mm")
+
     if layout == "split":
         left, right = st.columns([1.1, 1.2], gap="large")
         with left:
@@ -713,8 +723,8 @@ def render_estimate_outputs(
             render_installer_details()
         return
 
-    summary_tab, breakdown_tab, preview_tab, details_tab = st.tabs(
-        ["Summary", "Breakdown", "Preview", "Installer details"]
+    summary_tab, breakdown_tab, preview_tab, details_tab, overview_tab = st.tabs(
+        ["Summary", "Breakdown", "Preview", "Installer details", "FINAL OVERVIEW"]
     )
     with summary_tab:
         render_summary()
@@ -724,6 +734,8 @@ def render_estimate_outputs(
         render_preview()
     with details_tab:
         render_installer_details()
+    with overview_tab:
+        render_final_overview()
 
 
 def render_estimate_tab(roof_config: str) -> None:
